@@ -1,0 +1,157 @@
+---
+title: "alignment_free_beacons"
+author: "Garrett Graham"
+date: "2025-08-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+require(ggplot2)
+require(purrr)
+require(readr)
+require(stringr)
+require(dplyr)
+require(tidyr)
+require(tibble)
+require(googlesheets4)
+require(googledrive)
+googlesheets4::gs4_auth('graham@delfidiagnostics.com')
+
+meta<-googlesheets4::read_sheet(ss = googledrive::as_id('1m1qyrRXih5P6fHAb__QYFZpSQJQLcdrfMxKfQ1KTCjg'), sheet = 'Donor Manifest') |>
+  select(type = 'Donor Tumor Type',
+         subtype = 'Donor Subtype',
+         stage = 'Donor Stage',
+         id = 'Library ID') |> 
+  mutate(id = paste0(id, 'P0')) |>
+  left_join(googlesheets4::read_sheet(ss = googledrive::as_id('1m1qyrRXih5P6fHAb__QYFZpSQJQLcdrfMxKfQ1KTCjg'), sheet = 'ichorCNA') |>
+              mutate(id = stringr::str_extract(id, "DL[0-9]+[A-Z]{2}P0")) |>
+              select(id, ichorCNA = ichorCNA_tumor_fraction),
+            by = 'id')
+meta
+```
+
+```{r load}
+fi<-list.files('data', '*summaryStats.tsv', full.names = TRUE)
+df<-tibble(fi, id = stringr::str_extract(fi, "(DL[0-9]+[A-Z]{2}P0)", 1) |> factor()) |>
+  purrr::pmap(function(fi, id){
+    cbind(id, readr::read_tsv(fi, show_col_types = FALSE))
+  }) |>
+  list_rbind()
+
+pivot_longer(df,
+             ends_with('d0_mean'),
+             names_to = 'stat') %>%
+  mutate(modValue = value + meanFragmentSize) %>%
+  ggplot(aes(x = stat, y = modValue))+
+  geom_point()
+
+pivot_longer(df,
+             ends_with('d1_mean'),
+             names_to = 'stat') %>%
+  ggplot(aes(x = stat, y = value))+
+  geom_point()
+
+pivot_longer(df, 
+             c(ends_with('heft')), names_to = 'stat') |>
+  dplyr::left_join(meta, by = 'id') |>
+  ggplot(aes(x = ichorCNA, y = value))+
+  geom_point(size = 0.5)+
+  facet_wrap(~stat, scales = 'free_y')+
+  scale_x_log10()
+
+pivot_longer(df, cols = ends_with("_mean")) |>
+  mutate(dim = stringr::str_extract(name, "_d([0-9]+)_", 1) |> factor(),
+         ng  = stringr::str_extract(name, "^g([0-9]+)_", 1) |> factor()) %>%
+  select(!name) %>%
+  pivot_wider(names_from = dim, values_from = value) %>%
+  left_join(meta, by = 'id') %>%
+  filter(ng %in% 1:5) %>%
+  mutate(x = `0`, y = `1`) %>%
+  {ggplot(., aes(x, y, color = ichorCNA))+
+  geom_point()+
+  geom_text(data = group_by(., ng) %>% summarize(x = mean(x), y = mean(y)), mapping = aes(x = x, y = y, label = ng), color = 'red')
+    }
+
+pivot_longer(df, cols = ends_with("_heft")) |>
+  mutate(ng  = stringr::str_extract(name, "^g([0-9]+)_", 1) |> factor()) %>%
+  select(!name & !ends_with("mean")) %>%
+  left_join(meta, by = 'id') %>%
+  filter(ng %in% 1:5) %>%
+  {ggplot(., aes(x = value, y = ichorCNA, color = ng))+
+  geom_point()}
+
+
+pivot_longer(df, cols = ends_with("_mean")) |>
+  mutate(dim = stringr::str_extract(name, "_d([0-9]+)_", 1) |> factor(),
+         ng  = stringr::str_extract(name, "^g([0-9]+)_", 1) |> factor()) %>%
+  select(!name) |>
+  pivot_wider(names_from = dim, values_from = value) |>
+  ggplot(aes(x = `0`, y = `1`, color = ng))+
+  geom_point()
+```
+
+```{r st}
+fdf<-readr::read_tsv('data/DL007412LUP0_fragment_stats.tsv.gz',
+                     col_names = c('size', 'gc'),
+                     col_types = 'id',
+                     show_col_types = FALSE) %>% {.[complete.cases(.),]}
+
+ggplot(slice_sample(fdf, n = 5000000), aes(x = size))+
+  geom_freqpoly(binwidth = 1)
+
+ggplot(slice_sample(fdf, n = 5000000), aes(x = gc))+
+  geom_freqpoly(binwidth = 0.01)
+
+ggplot(slice_sample(fdf, n = 1e6), aes(x = size, y = gc))+
+  geom_density2d(adjust = 1.5, n = 250)+
+  scale_fill_viridis_d()+
+  geom_hline(yintercept = 0.41, color = 'grey30', lty = 2)+
+  geom_vline(xintercept = 167, color = 'grey30', lty = 2)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
