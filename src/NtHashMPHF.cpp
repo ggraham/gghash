@@ -14,14 +14,14 @@ GHash::GHash(int k) : k(k)
         config.verbose = true;
         config.num_threads = 6;
 }
-GHash::GHash(int k, pthash::build_configuration config) : k(k), config(config) {}
+GHash::GHash(int k, pthash::build_configuration config) : config(config), k(k) {}
 void GHash::insert(nthash::NtHash *h) {
         while (h->roll())
         {
                 m.insert(h->hashes()[0]);
         }
 }
-void GHash::increment(nthash::NtHash *h)
+void GHash::inc(nthash::NtHash *h)
 {
         while (h->roll())
         {
@@ -51,16 +51,24 @@ uint64_t GHash::ix(uint64_t h)
 {
         return pth(h);
 }
-std::vector<uint64_t> GHash::ix(
+std::vector<uint64_t> GHash::ix(nthash::NtHash *h)
+{
+	std::vector<uint64_t> output;
+	while (h->roll())
+	{
+		output.push_back(ix(h->hashes()[0]));
+	}
+	return output;
+}
 std::vector<uint64_t> GHash::ix(std::string s)
 {
         nthash::NtHash nth(s, 1, k, 0);
-        std::vector<uint64_t> output;
-        while (nth.roll())
-        {
-                output.push_back(ix(nth.hashes()[0]));
-        }
-        return output;
+        return ix(&nth);
+}
+std::vector<uint64_t> GHash::ix(char *s, int l)
+{
+	nthash::NtHash nth(s, l, 1, k, 0);
+	return ix(&nth);
 }
 uint64_t GHash::search(uint64_t h)
 {
@@ -79,11 +87,11 @@ std::vector<uint64_t> GHash::search(std::string s)
 void GHash::inc(std::string s)
 {
         nthash::NtHash nth(s, 1, k, 0);
-        GHash::increment(&nth);
+        GHash::inc(&nth);
 }
 void GHash::inc(char *s, int l)
 {
         nthash::NtHash nth(s, l, 1, k, 0);
-        GHash::increment(&nth);
+        GHash::inc(&nth);
 }
 } //namespace NtHashMPHF

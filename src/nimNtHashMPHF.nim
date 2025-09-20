@@ -1,5 +1,5 @@
 {.passl: "-L../lib -lz -lnthashmphf -lnthash".}
-{.passc: "-I../include".}
+{.passc: "-std=c++17 -I../include".}
 {.push header: "NtHashMPHF.hpp".}
 import klib
 type

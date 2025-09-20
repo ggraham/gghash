@@ -3,10 +3,7 @@
 #include <string>
 #include <unordered_set>
 #include "nthash.hpp"
-#include "pthash_utils_encoders.hpp"
-#include "pthash_utils_dense_encoders.hpp"
-#include "pthash_dense_partitioned_phf.hpp"
-#include "pthash_util.hpp"
+#include "pthash.hpp"
 
 namespace NtHashMPHF
 {
@@ -19,18 +16,26 @@ class GHash
         std::vector<uint64_t> v;
         int k;
         public:
-        GHash(int k);
-        GHash(int k, pthash::build_configuration config);
-        void insert(nthash::NtHash *h);
-        void increment(nthash::NtHash *h);
-        void insert(std::string s);
-        void insert(char *s, int l);
-        void build();
-        uint64_t search(uint64_t h);
-        std::vector<uint64_t> search(std::string s);
-        uint64_t ix(uint64_t h);
-        std::vector<uint64_t> ix(std::string s);
-        void inc(std::string s);
-        void inc(char *s, int l);
+
+	GHash(int);
+        GHash(int, pthash::build_configuration);
+
+	void insert(nthash::NtHash*);
+        void insert(std::string);
+        void insert(char*, int);
+
+	void build();
+
+	uint64_t ix(uint64_t h);
+	std::vector<uint64_t> ix(nthash::NtHash*);
+	std::vector<uint64_t> ix(std::string);
+	std::vector<uint64_t> ix(char*, int);
+
+	uint64_t search(uint64_t);
+        std::vector<uint64_t> search(std::string);
+
+	void inc(nthash::NtHash*);
+	void inc(std::string);
+        void inc(char*, int);
 };
 } //namespace NtHashMPHF
