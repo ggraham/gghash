@@ -1,4 +1,4 @@
-{.passc: "-I../armadillo-14.6.3/include".}
+{.passc: "-I../external/armadillo/include".}
 {.passl: "-lopenblas".}
 {.push header: "<armadillo>".}
 type

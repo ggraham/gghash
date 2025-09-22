@@ -7,3 +7,9 @@
 [submodule "external/pthash"]
 	path = external/pthash
 	url = https://github.com/jermp/PTHash.git
+[submodule "external/armadillo"]
+	path = external/armadillo
+	url = https://gitlab.com/conradsnicta/armadillo-code.git
+[submodule "external/WFA2"]
+	path = external/WFA2
+	url = https://github.com/smarco/WFA2-lib.git

@@ -1,5 +1,5 @@
 {.passl: "-lgomp -llapack -lopenblas".}
-{.passc: "-fopenmp -I../include/armadillo/include".}
+{.passc: "-fopenmp -I../external/armadillo/include".}
 {.push header: "<armadillo>".}
 import sequtils
 type

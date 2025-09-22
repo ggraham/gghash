@@ -1,5 +1,5 @@
-{.passc: "-I../WFA2".}
-{.passl: "-L../WFA2/build -lwfa2cpp".}
+{.passc: "-I../external/WFA2".}
+{.passl: "-L../external/WFA2/build -lwfa2cpp".}
 {.push header: "<bindings/cpp/WFAligner.hpp>".}
 
 type
