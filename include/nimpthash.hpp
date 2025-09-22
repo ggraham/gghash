@@ -4,7 +4,7 @@
 #include <unordered_set>
 #include <tuple>
 #include "pthash.hpp"
-#include "nthash.hpp"
+#include "nthash/nthash.hpp"
 namespace NtPtHash
 {
 	class GHash

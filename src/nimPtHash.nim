@@ -1,5 +1,3 @@
-{.passc: "-I../external/pthash/include -I../external/pthash/external/bits/include -I../external/pthash/external/bits/external/essentials/include -I../external/pthash/external/mm_file/include -I../external/pthash/external/xxHash -I../external/nthash/include/nthash -I../include".}
-{.passl: "-L../external/nthash/lib -lnthash".}
 {.push header: "nimpthash.hpp".}
 type
   CppVector*[T] {.importcpp: "std::vector<'0>", header: "<vector>".} = object
