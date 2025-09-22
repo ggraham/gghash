@@ -1,14 +1,19 @@
-import logging, stats, klib, nimWfa, nimGmm, tables, nimNt, cligen, strformat, ggplotnim
+import logging, stats, streams, zip/gzipfiles, klib, nimWfa, nimGmm, tables, nimNt, cligen, strformat
 proc main(r1: string; r2: string;
           maxReadLength: int = 101;
           minOverlapLength: int = 14;
-          nG: uint64 = 8;
+          nG: uint64 = 7;
+          nD: uint64 = 2;
           quiet: bool = false;
-          noPlot: bool = false;
           nKiter: uint64 = 15;
-          nEMiter: uint64 = 100) =
+          nEMiter: uint64 = 100;
+          writeModel: string = "";
+          loadModel: string = "";
+          summaryStats: string = "",
+          readMetrics: string = "") =
   var
     files: tuple[r1: Bufio[GzFile], r2: Bufio[GzFile]]
+    output: tuple[ro: GzFileStream, so: FileStream]
     reads: tuple[r1: FastxRecord, r2: FastxRecord]
     pairCount: tuple[valid: uint64, total: uint64]
     cigarOps = cast[ptr UncheckedArray[uint32]](allocShared(sizeof(uint32) * 100))
@@ -17,6 +22,10 @@ proc main(r1: string; r2: string;
     m: tuple[mat: Mat[float], nRows: uint64, lengthStats: RunningStat, gcStats: RunningStat] = (createMat[float](1e6.uint64, 2), 1e6.uint64, lengthStat, gcStat)
     logger = newConsoleLogger(fmtStr = "[$time] - [$appname]: ", useStderr = true)
   addHandler(logger)
+  if summaryStats != "":
+    output.so = newFileStream(summaryStats, fmWrite)
+  if readMetrics != "":
+    output.ro = newGzFileStream(readMetrics, fmWrite)
   let
     gla = createGapAffine2PieceAligner(-1, 3, 4, 2, 10, 1, Alignment, MemoryHigh)
   gla.setHeuristicNone()
@@ -59,47 +68,52 @@ proc main(r1: string; r2: string;
             offsets.r1.inc(c.length)
             offsets.r2.inc(c.length)
           else:
-            stdout.writeLine "ERR: unknown CIGAR operation"
+            info("ERR: unknown CIGAR operation")
         calculatedLength.inc(c.length)
       m.mat[pairCount.valid - 1, 0] = calculatedLength.float
       m.mat[pairCount.valid - 1, 1] = consensusSeq.gcContent
       m.gcStats.push(m.mat[pairCount.valid - 1, 1])
       m.lengthStats.push(m.mat[pairCount.valid - 1, 0])
-      # stdout.writeLine "{calculatedLength}\t{consensusSeq.gcContent:0.2f}\t{reads.r1.name}\t{consensusSeq}".fmt
+      if readMetrics != "":
+        output.ro.writeLine "{m.mat[pairCount.valid - 1, 0]:g}\t{m.mat[pairCount.valid - 1, 1]:0.3f}".fmt
   deallocShared(cigarOps)
-  stderr.writeLine "final counts: {pairCount}".fmt
+  if readMetrics != "":
+    output.ro.close()
+  info("final counts: {pairCount}".fmt)
   m.mat.shedRows(pairCount.valid, m.nRows - 1)
-  stderr.writeLine "mean length: {m.lengthStats.mean:0.2f}; mean GC: {m.gcStats.mean:0.2f}".fmt
+  info("mean length: {m.lengthStats.mean:0.2f}; mean GC: {m.gcStats.mean:0.2f}".fmt)
   for i in 0..<pairCount.valid:
     let tmp = m.mat[i,0]
     m.mat[i,0] = tmp - m.lengthStats.mean
   var
     g: fGMM[float]
-    d: GmmDistEucl
-    s: GmmSeedRandomSpread
-  doAssert g.gmmLearn(m.mat.transpose, nG, d, s, nKiter, nEMiter)
-  stdout.writeLine "means:"
+    d: GmmDistMaha
+  if loadModel != "":
+    g.gmmLoad(loadModel.cstring)
+    var
+      s: GmmSeedKeepExisting
+    doAssert g.gmmLearn(m.mat.transpose, nG, d, s, nKiter, nEMiter)
+  else:
+    var
+      s: GmmSeedRandomSpread
+    doAssert g.gmmLearn(m.mat.transpose, nG, d, s, nKiter, nEMiter)
+  let hefts = g.gmmHefts.rowToSeq(0)
   g.gmmMeans.printMat
-  if not noPlot:
-    let
-      x = m.mat.colToSeq(0)
-      y = m.mat.colToSeq(1)
-      df = toDf(x, y)
-      xMeans = g.gmmMeans.rowToSeq(0)
-      yMeans = g.gmmMeans.rowToSeq(1)
-      hefts = g.gmmHefts.rowToSeq(0)
-      dfMeans = toDf(xMeans, yMeans, hefts)
-    ggplot(df, aes("x", "y"))+
-      geom_point()+
-      geom_point(aes = aes(x = "xMeans", y = "yMeans"), data = dfMeans, color = "red")+
-      ggsave("./plot.png")
-    ggplot(df, aes("x"))+
-      geom_freqpoly(binWidth = 1.0)+
-      geom_point(aes = aes(x = "xMeans", y = "hefts"), data = dfMeans, color = "red")+
-      ggsave("./lenHist.png")
-    ggplot(df, aes("y"))+
-      geom_freqpoly(binWidth = 0.01)+
-      geom_point(aes = aes(x = "yMeans", y = "hefts"), data = dfMeans, color = "red")+
-      ggsave("./gcHist.png")
+  g.gmmCovs.printMat
+  if summaryStats != "":
+    output.so.write "meanFragmentSize"
+    for k in ["mean"]:
+      for n in 0..<nG:
+        for d in 0..<nD:
+          output.so.write "\tg{n}_d{d}_{k}".fmt
+        output.so.write "\tg{n}_heft".fmt
+    output.so.write "\n{m.lengthStats.mean:0.6f}".fmt
+    for n in 0..<nG:
+      for r in g.gmmMeans.col(n):
+        output.so.write "\t{r:0.6f}".fmt
+      output.so.write "\t{hefts[n]:0.6f}".fmt
+    output.so.write "\n"
+  if writeModel != "":
+    g.gmmSave(writeModel.cstring)
 dispatch main
 
