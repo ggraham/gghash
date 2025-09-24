@@ -4,7 +4,7 @@ CXX ?= g++
 CC ?= gcc
 NIMC ?= nim
 AR ?= ar
-CFLAGS = -Wall -O3 -fPIC -g -march=native
+CFLAGS = -c -Wall -O3 -fPIC -g -march=native
 NTHASH_LIB = lib/libnthash.a
 NTHASH_SRC = external/nthash/src
 NTHASH_INC = -Iexternal/nthash/include
@@ -16,17 +16,22 @@ PTHASH_INC = -Iexternal/pthash/include \
 			 -Iexternal/pthash/external/bits/external/essentials/include \
 			 -Iexternal/pthash/external/mm_file/include \
 			 -Iexternal/pthash/external/xxHash
-LIBD = -Llib
-LIBF = -lnthash
+LIB = lib
+LIBDFLAG = -L$(LIB)
+LIBNTHASHF = -lnthash
 SRC = src
 NIMB = nimPtHash
+NIMWFA = nimWfa
 
-WFA_INC = -Iexternal/WFA2
-WFA_SRC = external/WFA2/wavefront
-WFA_CPP_SRC = external/WFA2/bindings/cpp
-WFA_LIB = lib/libwfa.a
-WFA_CPP_LIB = lib/libwfacpp.a
-_WFA_OBJ =wavefront.o \
+WFA = external/WFA2
+WFA_WF_SRC = $(WFA)/wavefront
+WFA_CPP_SRC = $(WFA)/bindings/cpp
+WFA_MM_SRC = $(WFA)/system
+WFA_UT_SRC = $(WFA)/utils
+WFA_AL_SRC = $(WFA)/alignment
+WFA_INC = -I$(WFA) -I$(WFA_WF_SRC) -I$(WFA_CPP_SRC) -I$(WFA_MM_SRC) -I$(WFA_UT_SRC) -I$(WFA_AL_SRC)
+WFA_CPP_LIB = $(LIB)/libwfacpp.a
+_WFA_WF_OBJ =wavefront.o \
 		  wavefront_align.o \
 		  wavefront_aligner.o \
 		  wavefront_attributes.o \
@@ -55,33 +60,75 @@ _WFA_OBJ =wavefront.o \
 		  wavefront_termination.o \
 		  wavefront_unialign.o
 _WFA_CPP_OBJ = WFAligner.o
-WFA_OBJ = $(patsubst %, $(WFA_SRC)/%, $(_WFA_OBJ))
-WFA_CPP_OBJ  = $(patsubst %, $(WFA_CPP_SRC)/%, $(_WFA_CPP_OBJ))
-all: $(NIMB) $(WFA_LIB)
+_WFA_MM_OBJ = mm_allocator.o \
+	      mm_stack.o \
+	      profiler_counter.o \
+	      profiler_timer.o
+_WFA_UT_OBJ = bitmap.o \
+	      commons.o \
+	      dna_text.o \
+	      heatmap.o \
+	      sequence_buffer.o \
+	      vector.o
+_WFA_AL_OBJ = affine2p_penalties.o \
+	      affine_penalties.o \
+	      cigar.o \
+	      cigar_utils.o \
+	      score_matrix.o
+WFA_OBJ = $(patsubst %, $(WFA_UT_SRC)/%, $(_WFA_UT_OBJ)) \
+	  $(patsubst %, $(WFA_AL_SRC)/%, $(_WFA_AL_OBJ)) \
+	  $(patsubst %, $(WFA_MM_SRC)/%, $(_WFA_MM_OBJ)) \
+	  $(patsubst %, $(WFA_WF_SRC)/%, $(_WFA_WF_OBJ)) \
+	  $(patsubst %, $(WFA_CPP_SRC)/%, $(_WFA_CPP_OBJ))
+LIBWFAF = -lwfacpp
 
-$(NIMB) : $(SRC)/nimPtHash.nim $(NTHASH_LIB) 
-	$(NIMC) cpp -d:release --passC:"$(PTHASH_INC) $(NTHASH_INC) -Iinclude" --passL:"$(LIBD) $(LIBF)" $<
+all: $(NIMB) $(WFA_CPP_LIB) $(NIMWFA)
 
-$(NTHASH_SRC)/%.o  : $(NTHASH_SRC)/%.cpp
-	$(CXX) -c $(NTHASH_INC) -o $@ $< $(CFLAGS)
+$(NIMB) : $(SRC)/nimPtHash.nim $(NTHASH_LIB) | bin
+	$(NIMC) cpp -d:release --passC:"$(PTHASH_INC) $(NTHASH_INC) -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF)" $<
 
-$(NTHASH_LIB) : $(NTHASH_OBJ)
-	$(AR) -rvs $@ $^
+$(NTHASH_SRC)/%.o : $(NTHASH_SRC)/%.cpp
+	$(CXX) $(CFLAGS) $(NTHASH_INC) -o $@ $<
 
-$(WFA_SRC)/%.o : $(WFA_SRC)/%.c
-	$(CC) -c $(WFA_INC) -o $@ $< $(CFLAGS)
+$(NTHASH_LIB) : $(NTHASH_OBJ) | $(LIB)
+	$(AR) rs $@ $^
+
+$(WFA_WF_SRC)/%.o : $(WFA_WF_SRC)/%.c
+	$(CC) $(CFLAGS) $(WFA_INC) -o $@ $<
+
+$(WFA_UT_SRC)/%.o : $(WFA_UT_SRC)/%.c
+	$(CC) $(CFLAGS) $(WFA_INC) -o $@ $<
+
+$(WFA_MM_SRC)/%.o : $(WFA_MM_SRC)/%.c
+	$(CC) $(CFLAGS) $(WFA_INC) -o $@ $<
+
+$(WFA_AL_SRC)/%.o : $(WFA_AL_SRC)/%.c
+	$(CC) $(CFLAGS) $(WFA_INC) -o $@ $<
 
 $(WFA_CPP_SRC)/%.o : $(WFA_CPP_SRC)/%.cpp
-	$(CXX) -c -I$(WFA_INC) -I$(WFA_CPP_SRC) -o $@ $< $(CFLAGS)
+	$(CXX) $(CFLAGS) $(WFA_INC) -I$(WFA_CPP_SRC) -o $@ $<
 
-$(WFA_LIB) : $(WFA_OBJ) $(WFA_CPP_OBJ)
-	$(AR) -rvs $@ $^
+$(WFA_CPP_LIB) : $(WFA_OBJ) | $(LIB)
+	$(AR) rs $@ $^ 
+
+$(NIMWFA) : $(SRC)/nimWfa.nim $(WFA_CPP_LIB) | bin
+	$(NIMC) cpp -d:release --passC:"-I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBWFAF)" $<
+
+$(LIB) :
+	mkdir -p $@
+bin :
+	mkdir -p $@
 
 .PHONY: clean
 
 clean:
 	rm -f $(NTHASH_OBJ)
 	rm -f $(NTHASH_LIB)
-	rm -f $(SRC)/nimPtHash
+	rm -f $(NIMB) $(NIMWFA)
 	rm -f $(WFA_SRC)/*.o
-	rm -f $(WFA_LIB)
+	rm -f $(WFA_CPP_LIB)
+	rm -f $(WFA_AL_SRC)/*.o
+	rm -f $(WFA_UT_SRC)/*.o
+	rm -f $(WFA_MM_SRC)/*.o
+	rm -f $(WFA_WF_SRC)/*.o
+	rm -f $(WFA_CPP_SRC)/*.o

@@ -1,4 +1,4 @@
-import math, hashes, cppstl, algorithm, tables, sequtils, strutils
+import math, hashes, algorithm, tables, sequtils, strutils
 proc comp*(s: string): string =
   result = s.multiReplace([("A", "T"), ("T", "A"), ("C", "G"), ("G", "C")])
 
@@ -46,10 +46,6 @@ proc hpc*(s: string): string =
 
 type BitArray* = ref object
   bits*: seq[uint64]
-  len*: int
-
-type CppBitArray* = ref object
-  bits*: CppVector[uint64]
   len*: int
 
 proc divUp(a, b: int): int =

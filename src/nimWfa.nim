@@ -1,6 +1,4 @@
-{.passc: "-I../external/WFA2".}
-{.passl: "-L../external/WFA2/build -lwfa2cpp".}
-{.push header: "<bindings/cpp/WFAligner.hpp>".}
+{.push header: "WFAligner.hpp".}
 
 type
   MemoryModel* = enum
@@ -214,7 +212,7 @@ proc createPaf*[T](al: T, targetLen: int, queryLen: int): Paf =
 
 
 when isMainModule:
-  import cligen, nimNt
+  import cligen
   proc test() =
     let
       refS =   "GGGGAAGCCTCACAATCATGGTGGAAGGCAAGGAGGAGCAAGTCACGTCGTACACGGATGGCAGCAGGCAAAGAGAGAGCTTGTGCAGGGAAACTCCCCTG".cstring
