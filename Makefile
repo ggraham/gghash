@@ -17,11 +17,16 @@ PTHASH_INC = -Iexternal/pthash/include \
 			 -Iexternal/pthash/external/mm_file/include \
 			 -Iexternal/pthash/external/xxHash
 LIB = lib
+BIN = bin
+SRC = src
 LIBDFLAG = -L$(LIB)
 LIBNTHASHF = -lnthash
-SRC = src
-NIMB = nimPtHash
+NIMPTHASH = nimPtHash
 NIMWFA = nimWfa
+NIMARMA = nimArma
+NIMGMM = nimGmm
+NIMAF = alignmentFree
+ARMA_INC = -Iexternal/armadillo/include
 
 WFA = external/WFA2
 WFA_WF_SRC = $(WFA)/wavefront
@@ -82,10 +87,10 @@ WFA_OBJ = $(patsubst %, $(WFA_UT_SRC)/%, $(_WFA_UT_OBJ)) \
 	  $(patsubst %, $(WFA_CPP_SRC)/%, $(_WFA_CPP_OBJ))
 LIBWFAF = -lwfacpp
 
-all: $(NIMB) $(WFA_CPP_LIB) $(NIMWFA)
+all: $(NIMPTHASH) $(WFA_CPP_LIB) $(NIMWFA) $(NIMARMA) $(NIMGMM) $(NIMAF)
 
-$(NIMB) : $(SRC)/nimPtHash.nim $(NTHASH_LIB) | bin
-	$(NIMC) cpp -d:release --passC:"$(PTHASH_INC) $(NTHASH_INC) -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF)" $<
+$(NIMPTHASH) : $(SRC)/$(NIMPTHASH).nim $(NTHASH_LIB) | bin
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMPTHASH) --passC:"$(PTHASH_INC) $(NTHASH_INC) -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF)" $<
 
 $(NTHASH_SRC)/%.o : $(NTHASH_SRC)/%.cpp
 	$(CXX) $(CFLAGS) $(NTHASH_INC) -o $@ $<
@@ -111,24 +116,26 @@ $(WFA_CPP_SRC)/%.o : $(WFA_CPP_SRC)/%.cpp
 $(WFA_CPP_LIB) : $(WFA_OBJ) | $(LIB)
 	$(AR) rs $@ $^ 
 
-$(NIMWFA) : $(SRC)/nimWfa.nim $(WFA_CPP_LIB) | bin
-	$(NIMC) cpp -d:release --passC:"-I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBWFAF)" $<
+$(NIMWFA) : $(SRC)/$(NIMWFA).nim $(WFA_CPP_LIB) | bin
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMWFA) --passC:"-I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBWFAF)" $<
+
+$(NIMARMA) : $(SRC)/$(NIMARMA).nim | bin
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMARMA) --passC:"$(ARMA_INC)" --passL:"-lopenblas" $<
+
+$(NIMGMM) : $(SRC)/$(NIMGMM).nim | bin
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMGMM) --passC:"-fopenmp $(ARMA_INC)" --passL:"-lgomp -llapack -lopenblas" $<
+
+$(NIMAF) : $(SRC)/$(NIMAF).nim | bin
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMAF) --passC:"-fopenmp $(PTHASH_INC) $(NTHASH_INC) $(ARMA_INC) -I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBNTHASHF) $(LIBWFAF) -lopenblas -lgomp -llapack" $<
 
 $(LIB) :
 	mkdir -p $@
-bin :
+$(BIN) :
 	mkdir -p $@
 
 .PHONY: clean
 
 clean:
-	rm -f $(NTHASH_OBJ)
-	rm -f $(NTHASH_LIB)
-	rm -f $(NIMB) $(NIMWFA)
-	rm -f $(WFA_SRC)/*.o
-	rm -f $(WFA_CPP_LIB)
-	rm -f $(WFA_AL_SRC)/*.o
-	rm -f $(WFA_UT_SRC)/*.o
-	rm -f $(WFA_MM_SRC)/*.o
-	rm -f $(WFA_WF_SRC)/*.o
-	rm -f $(WFA_CPP_SRC)/*.o
+	rm -f $(NTHASH_OBJ) $(WFA_OBJ)
+	rm -f $(LIB)/*
+	rm -f $(BIN)/*

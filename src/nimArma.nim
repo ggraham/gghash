@@ -1,6 +1,5 @@
-{.passc: "-I../external/armadillo/include".}
 {.passl: "-lopenblas".}
-{.push header: "<armadillo>".}
+{.push header: "armadillo".}
 type
   Mat[T] {.importcpp: "arma::Mat<'0>".} = object
   GMM {.importcpp: "arma::gmm_full".} = object
