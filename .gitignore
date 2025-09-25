@@ -4,3 +4,9 @@
 .Ruserdata
 renv*
 python*
+bin/*
+lib/*
+*.tsv
+*.gz
+*.gmm
+*.png
