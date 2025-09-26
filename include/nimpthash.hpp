@@ -22,10 +22,6 @@ namespace NtPtHash
 				m.insert(h->hashes()[0]);
 			}
 		}
-		inline uint64_t idx(uint64_t h)
-		{
-			return pth(h);
-		}
 		inline std::vector<uint64_t> hx(nthash::NtHash *h)
 		{
 			std::vector<uint64_t> output;
@@ -60,6 +56,10 @@ namespace NtPtHash
 			config.seed = seed;
 			config.num_threads = num_threads;
 		}
+        inline uint64_t idx(uint64_t h)
+        {
+                return pth(h);
+        }
 		inline uint64_t getSize()
 		{
 			return target_size;

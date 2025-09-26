@@ -7,9 +7,10 @@ proc newGHash*(k, num_threads: uint64; seed: uint64 = 7, avg_partition_size: uin
 proc insert(h: GHash; s: pointer; l: csize_t) {.importcpp: "#.ins(@)".}
 proc build*(h: GHash) {.importcpp: "#.build()".}
 proc index(h: GHash; s: pointer; l: csize_t): CppVector[uint64] {.importcpp: "#.idx(@)".}
+proc index*(h: GHash; i: uint64): uint64 {.importcpp: "#.idx(@)".}
 proc hash(h: GHash; s: pointer; l: csize_t): CppVector[uint64] {.importcpp: "#.hx(@)".}
 proc data[T](v: CppVector[T]): ptr T {.importcpp: "#.data()".}
-proc size(h: GHash): uint64 {.importcpp: "#.getSize()".}
+proc size*(h: GHash): uint64 {.importcpp: "#.getSize()".}
 proc size[T](v: CppVector[T]): int {.importcpp: "#.size()".}
 {.pop.}
 proc index*(h: GHash, s: string): seq[uint64] =

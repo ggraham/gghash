@@ -18,42 +18,43 @@ type
   fGMM*[T] {.importcpp: "arma::gmm_priv::gmm_full".} = object
   dGMM*[T] {.importcpp: "arma::gmm_priv::gmm_diag".} = object
 #
-proc createMat*[T](nr, nc: uint64): Mat[T] {.importcpp: "arma::Mat<'*0>(@)", constructor.}
-proc createRow*[T](nr: uint64): Row[T] {.importcpp: "arma::Row<'*0>(@)", constructor.}
-proc createVec*[T](ne: uint64): Col[T] {.importcpp: "arma::Col<'*0>(@)", constructor.}
+proc createMat*[T](nr, nc: csize_t): Mat[T] {.importcpp: "arma::Mat<'*0>(@)", constructor.}
+proc createRow*[T](nr: csize_t): Row[T] {.importcpp: "arma::Row<'*0>(@)", constructor.}
+proc createVec*[T](ne: csize_t): Col[T] {.importcpp: "arma::Col<'*0>(@)", constructor.}
 proc printMat*[T](m: T) {.importcpp: "#.print()".}
-proc `[]`*[T](m: Row[T]|Col[T]; i: uint64): T {.importcpp: "#(#)".}
-proc `[]`*[T](m: Cube[T]; i: uint64): Mat[T] {.importcpp: "#.slice(#)".}
-proc `[]`*[T](m: Mat[T]; r, c: uint64): T {.importcpp: "#(#,#)".}
-proc `[]=`*[T](m: var Mat[T]; r, c: uint64; e: T) {.importcpp: "#(#,#)=#".}
-proc `[]=`*[T](m: var Col[T]; i: uint64; e: T) {.importcpp: "#(#)=#".}
-proc `[]=`*[T](m: var Row[T]; i: uint64; e: T) {.importcpp: "#(#)=#".}
+proc `[]`*[T](m: Row[T]|Col[T]; i: csize_t): T {.importcpp: "#(#)".}
+proc `[]`*[T](m: Cube[T]; i: csize_t): Mat[T] {.importcpp: "#.slice(#)".}
+proc `[]`*[T](m: Mat[T]; r, c: csize_t): T {.importcpp: "#(#,#)".}
+proc `[]=`*[T](m: var Mat[T]; r, c: csize_t; e: T) {.importcpp: "#(#,#)=#".}
+proc `[]=`*[T](m: var Col[T]; i: csize_t; e: T) {.importcpp: "#(#)=#".}
+proc `[]=`*[T](m: var Row[T]; i: csize_t; e: T) {.importcpp: "#(#)=#".}
 proc diag*[T](m: Mat[T]; i: int64 = 0): Col[T] {.importcpp: "#.diag(#)".}
 proc transpose*[T](m: Mat[T]): Mat[T] {.importcpp: "#.t()".}
-proc gmmLearn*[T](g: fGMM[T]|dGMM[T]; m: Mat[T]; nGaussians: uint64 = 3; distMode: GmmDistMaha|GmmDistEucl; seedMode: GmmSeedRandomSample|GmmSeedRandomSpread|GmmSeedKeepExisting; kmIter: uint64 = 15; emIter: uint64 = 100; varFloor: T = 0.001; printMode: bool = true): bool {.importcpp: "#.learn(@)".}
+proc gmmLearn*[T](g: fGMM[T]|dGMM[T]; m: Mat[T]; nGaussians: uint64 = 3; distMode: GmmDistMaha|GmmDistEucl; seedMode: GmmSeedRandomSample|GmmSeedRandomSpread|GmmSeedKeepExisting; kmIter: uint64 = 15; emIter: uint64 = 500; varFloor: T = 0.001; printMode: bool = true): bool {.importcpp: "#.learn(@)".}
 proc gmmNGaussians*(g: fGMM|dGMM): uint {.importcpp: "#.n_gaus()".}
 proc gmmMeans*[T](g: fGMM[T]|dGMM[T]): Mat[T] {.importcpp: "#.means".}
 proc gmmHefts*[T](g: fGMM[T]|dGMM[T]): Mat[T] {.importcpp: "#.hefts".}
 proc gmmCovs*[T](g: dGMM[T]): Mat[T] {.importcpp: "#.dcovs".}
 proc gmmCovs*[T](g: fGMM[T]): Cube[T] {.importcpp: "#.fcovs".}
-proc gmmAssign*[T](g: fGMM[T]; x: Col[T]; dist: GmmDistEucl|GmmDistProb): uint64 {.importcpp: "#.assign(#,#)".}
-proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]; idx: uint64): Row[T] {.importcpp: "#.log_p(#,#)".}
+proc gmmAssign*[T](g: fGMM[T]; x: Col[T]; dist: GmmDistEucl|GmmDistProb): culonglong {.importcpp: "#.assign(#,#)".}
+proc gmmAssign*[T](g: fGMM[T]; x: Mat[T]; dist: GmmDistEucl|GmmDistProb): Row[culonglong] {.importcpp: "#.assign(#,#)".}
+proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]; idx: csize_t): Row[T] {.importcpp: "#.log_p(#,#)".}
 proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]): Row[T] {.importcpp: "#.log_p(#)".}
 proc gmmSave*(g: fGMM|dGMM; f: cstring) {.importcpp: "#.save(#)".}
 proc gmmLoad*(g: fGMM|dGMM; f: cstring) {.importcpp: "#.load(#)".}
-proc colBegin*[T](m: Mat[T]; idx: uint64): ColIter[T] {.importcpp: "#.begin_col(#)".}
+proc colBegin*[T](m: Mat[T]; idx: csize_t): ColIter[T] {.importcpp: "#.begin_col(#)".}
 proc colBegin*[T](m: Col[T]): ColIter[T] {.importcpp: "#.begin()".}
 proc rowBegin*[T](m: Row[T]): RowVecIter[T] {.importcpp: "#.begin()".}
-proc colEnd*[T](m: Mat[T]; idx: uint64): ColIter[T] {.importcpp: "#.end_col(#)".}
+proc colEnd*[T](m: Mat[T]; idx: csize_t): ColIter[T] {.importcpp: "#.end_col(#)".}
 proc colEnd*[T](m: Col[T]): ColIter[T] {.importcpp: "#.end()".}
 proc rowEnd*[T](m: Row[T]): RowVecIter[T] {.importcpp: "#.end()".}
-proc rowBegin*[T](m: Mat[T]; idx: uint64): RowIter[T] {.importcpp: "#.begin_row(#)".}
-proc rowEnd*[T](m: Mat[T]; idx: uint64): RowIter[T] {.importcpp: "#.end_row(#)".}
+proc rowBegin*[T](m: Mat[T]; idx: csize_t): RowIter[T] {.importcpp: "#.begin_row(#)".}
+proc rowEnd*[T](m: Mat[T]; idx: csize_t): RowIter[T] {.importcpp: "#.end_row(#)".}
 proc `[]`*[T](it: ColIter[T]|RowVecIter[T]|RowIter[T]): T {.importcpp: "(*#)".}
 proc `inc`*(it: var ColIter|RowVecIter|RowIter) {.importcpp: "++#".}
 proc `!=`*(it1, it2: ColIter|RowVecIter|RowIter): bool {.importcpp: "# != #".}
-proc insertRows*[T](m: Mat[T]; idx, nRows: uint64) {.importcpp: "#.insert_rows(@)".}
-proc shedRows*[T](m: Mat[T]; idxFrom, idxTo: uint64) {.importcpp: "#.shed_rows(@)".}
+proc insertRows*[T](m: Mat[T]; idx, nRows: csize_t) {.importcpp: "#.insert_rows(@)".}
+proc shedRows*[T](m: Mat[T]; idxFrom, idxTo: csize_t) {.importcpp: "#.shed_rows(@)".}
 {.pop.}
 iterator col*[T](m: Col[T]): T =
   var itB = m.colBegin()
@@ -159,6 +160,12 @@ when isMainModule:
       o1 = g.gmmLogP(om, 0)
       o2 = g.gmmLogP(om, 1)
       oa = g.gmmLogP(om)
+    var
+      pr: GmmDistProb
+    let
+      assign = g.gmmAssign(om, pr)
+    stdout.writeLine "assignments:"
+    assign.printMat
     stdout.writeLine "G prob:"
     for d in 0..<2.uint64:
       stdout.writeLine "{o1[d]}\t{o2[d]}\t{oa[d]}".fmt

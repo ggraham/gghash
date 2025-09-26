@@ -1,10 +1,7 @@
-import logging, stats, streams, zip/gzipfiles, klib, nimPtHash, nimWfa, nimGmm, tables, nimNt, cligen, strformat
+import logging, stats, streams, sequtils, zip/gzipfiles, klib, nimPtHash, nimWfa, nimGmm, tables, nimNt, cligen, strformat
 type
   HashedConsensusSequence = object
     hashes: seq[uint64]
-    indices: seq[uint64]
-    length: uint64
-    gc: float
 
 proc main(r1: string; r2: string;
           maxReadLength: int = 101;
@@ -18,13 +15,14 @@ proc main(r1: string; r2: string;
           threads: uint64 = 8;
           writeModel: string = "";
           loadModel: string = "";
-          summaryStats: string = "",
+          assignedKCounts: string = "";
+          summaryStats: string = "";
           readMetrics: string = "") =
   let
     phf = newGHash(k, threads, avg_partition_size = 100000)
   var
     files: tuple[r1: Bufio[GzFile], r2: Bufio[GzFile]]
-    output: tuple[ro: GzFileStream, so: FileStream]
+    output: tuple[ro: GzFileStream, so: FileStream, ko: GzFileStream]
     reads: tuple[r1: FastxRecord, r2: FastxRecord]
     pairCount: tuple[valid: uint64, total: uint64]
     cigarOps = cast[ptr UncheckedArray[uint32]](allocShared(sizeof(uint32) * 100))
@@ -38,6 +36,8 @@ proc main(r1: string; r2: string;
     output.so = newFileStream(summaryStats, fmWrite)
   if readMetrics != "":
     output.ro = newGzFileStream(readMetrics, fmWrite)
+  if assignedKCounts != "":
+    output.ko = newGzFileStream(assignedKCounts, fmWrite)
   let
     gla = createGapAffine2PieceAligner(-1, 3, 4, 2, 10, 1, Alignment, MemoryHigh)
   gla.setHeuristicNone()
@@ -84,6 +84,7 @@ proc main(r1: string; r2: string;
             info("ERR: unknown CIGAR operation")
         calculatedLength.inc(c.length)
       phf.insert(consensusSeq)
+      consSeqs.add(HashedConsensusSequence(hashes: phf.hash(consensusSeq)))
       m.mat[pairCount.valid - 1, 0] = calculatedLength.float
       m.mat[pairCount.valid - 1, 1] = consensusSeq.gcContent
       m.gcStats.push(m.mat[pairCount.valid - 1, 1])
@@ -91,17 +92,21 @@ proc main(r1: string; r2: string;
       if readMetrics != "":
         output.ro.writeLine "{m.mat[pairCount.valid - 1, 0]:g}\t{m.mat[pairCount.valid - 1, 1]:0.3f}".fmt
   deallocShared(cigarOps)
+  phf.build()
   if readMetrics != "":
     output.ro.close()
-  info("final counts: {pairCount}".fmt)
+  if not quiet:
+    info("final counts: {pairCount}".fmt)
+    info("mean length: {m.lengthStats.mean:0.2f}; mean GC: {m.gcStats.mean:0.2f}".fmt)
   m.mat.shedRows(pairCount.valid, m.nRows - 1)
-  info("mean length: {m.lengthStats.mean:0.2f}; mean GC: {m.gcStats.mean:0.2f}".fmt)
   for i in 0..<pairCount.valid:
     let tmp = m.mat[i,0]
     m.mat[i,0] = tmp - m.lengthStats.mean
   var
     g: fGMM[float]
     d: GmmDistMaha
+    dp: GmmDistProb
+    v: seq[seq[uint64]] = newSeqWith(nG.int, newSeq[uint64](phf.size()))
   if loadModel != "":
     g.gmmLoad(loadModel.cstring)
     var
@@ -114,6 +119,18 @@ proc main(r1: string; r2: string;
   let hefts = g.gmmHefts.rowToSeq(0)
   g.gmmMeans.printMat
   g.gmmCovs.printMat
+  let
+    assignments = g.gmmAssign(m.mat.transpose, dp)
+  for i in 0..<consSeqs.len:
+    let
+      assignedG = assignments[i.csize_t]
+    for k in consSeqs[i].hashes:
+      v[assignedG][phf.index(k)]+=1
+  if assignedKCounts != "":
+    for i in 0..<nG:
+      for k in 0..<phf.size():
+        output.ko.writeLine "{i}\t{k}\t{v[i][k]}".fmt
+    output.ko.close()
   if summaryStats != "":
     output.so.write "meanFragmentSize"
     for k in ["mean"]:
@@ -127,6 +144,7 @@ proc main(r1: string; r2: string;
         output.so.write "\t{r:0.6f}".fmt
       output.so.write "\t{hefts[n]:0.6f}".fmt
     output.so.write "\n"
+    output.so.close()
   if writeModel != "":
     g.gmmSave(writeModel.cstring)
 dispatch main
