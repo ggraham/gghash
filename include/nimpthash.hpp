@@ -15,18 +15,27 @@ namespace NtPtHash
 		uint64_t k;
 		uint64_t target_size;
 		bool built = false;
-		void ins(nthash::NtHash *h)
+		inline void ins(nthash::NtHash *h)
 		{
 			while (h->roll())
 			{
 				m.insert(h->hashes()[0]);
 			}
 		}
-		uint64_t idx(uint64_t h)
+		inline uint64_t idx(uint64_t h)
 		{
 			return pth(h);
 		}
-		std::vector<uint64_t> idx(nthash::NtHash *h)
+		inline std::vector<uint64_t> hx(nthash::NtHash *h)
+		{
+			std::vector<uint64_t> output;
+			while (h->roll())
+			{
+				output.push_back(h->hashes()[0]);
+			}
+			return output;
+		}
+		inline std::vector<uint64_t> idx(nthash::NtHash *h)
 		{
 			std::vector<uint64_t> output;
 			while (h->roll())
@@ -51,21 +60,31 @@ namespace NtPtHash
 			config.seed = seed;
 			config.num_threads = num_threads;
 		}
-		uint64_t getSize()
+		inline uint64_t getSize()
 		{
 			return target_size;
 		}
-		void ins(std::string s)
+		inline void ins(std::string s)
 		{
 			nthash::NtHash h(s, 1, k, 0);
 			ins(&h);
 		}
-		void ins(char *s, int l)
+		inline void ins(char *s, size_t l)
 		{
 			nthash::NtHash h(s, l, 1, k, 0);
 			ins(&h);
 		}
-		std::vector<uint64_t> idx(std::string s)
+		inline std::vector<uint64_t> hx(std::string s)
+		{
+			nthash::NtHash h(s, 1, k, 0);
+			return hx(&h);
+		}
+		inline std::vector<uint64_t> hx(char *s, size_t l)
+		{
+			nthash::NtHash h(s, l, 1, k, 0);
+			return hx(&h);
+		}
+		inline std::vector<uint64_t> idx(std::string s)
 		{
 			nthash::NtHash h(s, 1, k, 0);
 			if (!built)
@@ -74,7 +93,7 @@ namespace NtPtHash
 			}
 			return idx(&h);
 		}
-		std::vector<uint64_t> idx(char *s, int l)
+		inline std::vector<uint64_t> idx(char *s, size_t l)
 		{
 			nthash::NtHash h(s, l, 1, k, 0);
 			if (!built)
@@ -83,7 +102,7 @@ namespace NtPtHash
 			}
 			return idx(&h);
 		}
-		void build()
+		inline void build()
 		{
 			std::cout << "building map with " << m.size() << " keys" << std::endl;
 			target_size = m.size();

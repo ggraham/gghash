@@ -1,4 +1,11 @@
-import logging, stats, streams, zip/gzipfiles, klib, nimWfa, nimGmm, tables, nimNt, cligen, strformat
+import logging, stats, streams, zip/gzipfiles, klib, nimPtHash, nimWfa, nimGmm, tables, nimNt, cligen, strformat
+type
+  HashedConsensusSequence = object
+    hashes: seq[uint64]
+    indices: seq[uint64]
+    length: uint64
+    gc: float
+
 proc main(r1: string; r2: string;
           maxReadLength: int = 101;
           minOverlapLength: int = 14;
@@ -7,10 +14,14 @@ proc main(r1: string; r2: string;
           quiet: bool = false;
           nKiter: uint64 = 15;
           nEMiter: uint64 = 100;
+          k: uint64 = 12;
+          threads: uint64 = 8;
           writeModel: string = "";
           loadModel: string = "";
           summaryStats: string = "",
           readMetrics: string = "") =
+  let
+    phf = newGHash(k, threads, avg_partition_size = 100000)
   var
     files: tuple[r1: Bufio[GzFile], r2: Bufio[GzFile]]
     output: tuple[ro: GzFileStream, so: FileStream]
@@ -19,6 +30,7 @@ proc main(r1: string; r2: string;
     cigarOps = cast[ptr UncheckedArray[uint32]](allocShared(sizeof(uint32) * 100))
     cigarLen: cint
     gcStat, lengthStat: RunningStat
+    consSeqs: seq[HashedConsensusSequence]
     m: tuple[mat: Mat[float], nRows: uint64, lengthStats: RunningStat, gcStats: RunningStat] = (createMat[float](1e6.uint64, 2), 1e6.uint64, lengthStat, gcStat)
     logger = newConsoleLogger(fmtStr = "[$time] - [$appname]: ", useStderr = true)
   addHandler(logger)
@@ -41,7 +53,8 @@ proc main(r1: string; r2: string;
         info("{pairCount.total} reads processed; {pairCount.valid} valid pairs".fmt)
     doAssert(reads.r1.name == reads.r2.name)
     doAssert(StatusAlgCompleted == gla.alignEndsFree(maxReadLength, reads.r1.seq, maxReadLength, reads.r2.seq.rev.comp))
-    let thisCigar = gla.alToCigarTupleSeqEnum(cigarOps, cigarLen)
+    let 
+      thisCigar = gla.alToCigarTupleSeqEnum(cigarOps, cigarLen)
     if thisCigar.maxCigarMatchEnum > minOverlapLength:
       pairCount.valid.inc
       if pairCount.valid mod 1e6.uint64 == 0:
@@ -70,6 +83,7 @@ proc main(r1: string; r2: string;
           else:
             info("ERR: unknown CIGAR operation")
         calculatedLength.inc(c.length)
+      phf.insert(consensusSeq)
       m.mat[pairCount.valid - 1, 0] = calculatedLength.float
       m.mat[pairCount.valid - 1, 1] = consensusSeq.gcContent
       m.gcStats.push(m.mat[pairCount.valid - 1, 1])

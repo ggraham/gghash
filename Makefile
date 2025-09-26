@@ -11,11 +11,7 @@ NTHASH_INC = -Iexternal/nthash/include
 _NTHASH_OBJ = seed.o kmer.o
 NTHASH_OBJ = $(patsubst %, $(NTHASH_SRC)/%, $(_NTHASH_OBJ))
 
-PTHASH_INC = -Iexternal/pthash/include \
-			 -Iexternal/pthash/external/bits/include \
-			 -Iexternal/pthash/external/bits/external/essentials/include \
-			 -Iexternal/pthash/external/mm_file/include \
-			 -Iexternal/pthash/external/xxHash
+PTHASH_INC = -Iexternal/pthash/include
 LIB = lib
 BIN = bin
 SRC = src
@@ -126,7 +122,7 @@ $(NIMGMM) : $(SRC)/$(NIMGMM).nim | bin
 	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMGMM) --passC:"-fopenmp $(ARMA_INC)" --passL:"-lgomp -llapack -lopenblas" $<
 
 $(NIMAF) : $(SRC)/$(NIMAF).nim | bin
-	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMAF) --passC:"-fopenmp $(PTHASH_INC) $(NTHASH_INC) $(ARMA_INC) -I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBNTHASHF) $(LIBWFAF) -lopenblas -lgomp -llapack" $<
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMAF) --passC:"-fopenmp $(PTHASH_INC) $(NTHASH_INC) $(ARMA_INC) -I$(WFA_CPP_SRC) -Iexternal/WFA2 -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF) $(LIBWFAF) -lopenblas -lgomp -llapack" $<
 
 $(LIB) :
 	mkdir -p $@
