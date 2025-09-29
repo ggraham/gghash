@@ -5,6 +5,8 @@ CC ?= gcc
 NIMC ?= nim
 AR ?= ar
 CFLAGS = -c -Wall -O3 -fPIC -g -march=native
+BLAS ?= openblas
+
 NTHASH_LIB = lib/libnthash.a
 NTHASH_SRC = external/nthash/src
 NTHASH_INC = -Iexternal/nthash/include
@@ -116,13 +118,13 @@ $(NIMWFA) : $(SRC)/$(NIMWFA).nim $(WFA_CPP_LIB) | bin
 	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMWFA) --passC:"-I$(WFA_CPP_SRC) -Iexternal/WFA2" --passL:"$(LIBDFLAG) $(LIBWFAF)" $<
 
 $(NIMARMA) : $(SRC)/$(NIMARMA).nim | bin
-	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMARMA) --passC:"$(ARMA_INC)" --passL:"-lopenblas" $<
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMARMA) --passC:"$(ARMA_INC)" --passL:"-l$(BLAS)" $<
 
 $(NIMGMM) : $(SRC)/$(NIMGMM).nim | bin
-	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMGMM) --passC:"-fopenmp $(ARMA_INC)" --passL:"-lgomp -llapack -lopenblas" $<
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMGMM) --passC:"-fopenmp $(ARMA_INC)" --passL:"-lgomp -l$(BLAS)" $<
 
 $(NIMAF) : $(SRC)/$(NIMAF).nim | bin
-	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMAF) --passC:"-fopenmp $(PTHASH_INC) $(NTHASH_INC) $(ARMA_INC) -I$(WFA_CPP_SRC) -Iexternal/WFA2 -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF) $(LIBWFAF) -lopenblas -lgomp -llapack" $<
+	$(NIMC) cpp -d:release -o:$(BIN)/$(NIMAF) --passC:"-fopenmp $(PTHASH_INC) $(NTHASH_INC) $(ARMA_INC) -I$(WFA_CPP_SRC) -Iexternal/WFA2 -Iinclude" --passL:"$(LIBDFLAG) $(LIBNTHASHF) $(LIBWFAF) -lgomp -l$(BLAS)" $<
 
 $(LIB) :
 	mkdir -p $@
