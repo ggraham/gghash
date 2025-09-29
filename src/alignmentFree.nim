@@ -9,9 +9,10 @@ proc main(r1: string; r2: string;
           nG: uint64 = 7;
           nD: uint64 = 2;
           quiet: bool = false;
-          nKiter: uint64 = 15;
-          nEMiter: uint64 = 100;
+          nKiter: uint64 = 25;
+          nEMiter: uint64 = 500;
           k: uint64 = 12;
+          minLogProb: float = 1;
           threads: uint64 = 8;
           writeModel: string = "";
           loadModel: string = "";
@@ -29,7 +30,7 @@ proc main(r1: string; r2: string;
     cigarLen: cint
     gcStat, lengthStat: RunningStat
     consSeqs: seq[HashedConsensusSequence]
-    m: tuple[mat: Mat[float], nRows: uint64, lengthStats: RunningStat, gcStats: RunningStat] = (createMat[float](1e6.uint64, 2), 1e6.uint64, lengthStat, gcStat)
+    m: tuple[mat: Mat[float], nCols: uint64, lengthStats: RunningStat, gcStats: RunningStat] = (createMat[float](2, 1e6.uint64), 1e6.uint64, lengthStat, gcStat)
     logger = newConsoleLogger(fmtStr = "[$time] - [$appname]: ", useStderr = true)
   addHandler(logger)
   if summaryStats != "":
@@ -58,8 +59,8 @@ proc main(r1: string; r2: string;
     if thisCigar.maxCigarMatchEnum > minOverlapLength:
       pairCount.valid.inc
       if pairCount.valid mod 1e6.uint64 == 0:
-        m.mat.insertRows(pairCount.valid, 1e6.uint64)
-        m.nRows.inc(1e6.uint64)
+        m.mat.insertCols(pairCount.valid, 1e6.uint64)
+        m.nCols.inc(1e6.uint64)
       var
         calculatedLength: uint64 = 0
         offsets: tuple[r1: int, r2: int]
@@ -85,12 +86,12 @@ proc main(r1: string; r2: string;
         calculatedLength.inc(c.length)
       phf.insert(consensusSeq)
       consSeqs.add(HashedConsensusSequence(hashes: phf.hash(consensusSeq)))
-      m.mat[pairCount.valid - 1, 0] = calculatedLength.float
-      m.mat[pairCount.valid - 1, 1] = consensusSeq.gcContent
-      m.gcStats.push(m.mat[pairCount.valid - 1, 1])
-      m.lengthStats.push(m.mat[pairCount.valid - 1, 0])
+      m.mat[0, pairCount.valid - 1] = calculatedLength.float
+      m.mat[1, pairCount.valid - 1] = consensusSeq.gcContent
+      m.gcStats.push(m.mat[1, pairCount.valid - 1])
+      m.lengthStats.push(m.mat[0, pairCount.valid - 1])
       if readMetrics != "":
-        output.ro.writeLine "{m.mat[pairCount.valid - 1, 0]:g}\t{m.mat[pairCount.valid - 1, 1]:0.3f}".fmt
+        output.ro.writeLine "{m.mat[0, pairCount.valid - 1]:g}\t{m.mat[1, pairCount.valid - 1]:0.3f}".fmt
   deallocShared(cigarOps)
   phf.build()
   if readMetrics != "":
@@ -98,10 +99,10 @@ proc main(r1: string; r2: string;
   if not quiet:
     info("final counts: {pairCount}".fmt)
     info("mean length: {m.lengthStats.mean:0.2f}; mean GC: {m.gcStats.mean:0.2f}".fmt)
-  m.mat.shedRows(pairCount.valid, m.nRows - 1)
+  m.mat.shedCols(pairCount.valid, m.nCols - 1)
   for i in 0..<pairCount.valid:
-    let tmp = m.mat[i,0]
-    m.mat[i,0] = tmp - m.lengthStats.mean
+    let tmp = m.mat[0,i]
+    m.mat[0,i] = tmp - m.lengthStats.mean
   var
     g: fGMM[float]
     d: GmmDistMaha
@@ -111,21 +112,23 @@ proc main(r1: string; r2: string;
     g.gmmLoad(loadModel.cstring)
     var
       s: GmmSeedKeepExisting
-    doAssert g.gmmLearn(m.mat.transpose, nG, d, s, nKiter, nEMiter)
+    doAssert g.gmmLearn(m.mat, nG, d, s, nKiter, nEMiter)
   else:
     var
       s: GmmSeedRandomSpread
-    doAssert g.gmmLearn(m.mat.transpose, nG, d, s, nKiter, nEMiter)
+    doAssert g.gmmLearn(m.mat, nG, d, s, nKiter, nEMiter)
   let hefts = g.gmmHefts.rowToSeq(0)
   g.gmmMeans.printMat
   g.gmmCovs.printMat
   let
-    assignments = g.gmmAssign(m.mat.transpose, dp)
+    assignments = g.gmmAssign(m.mat, dp)
   for i in 0..<consSeqs.len:
     let
       assignedG = assignments[i.csize_t]
-    for k in consSeqs[i].hashes:
-      v[assignedG][phf.index(k)]+=1
+      assignedGprob = g.gmmLogP(m.mat.col(i.csize_t), assignedG)
+    if assignedGprob >= minLogProb:
+      for k in consSeqs[i].hashes:
+        v[assignedG][phf.index(k)]+=1
   if assignedKCounts != "":
     for i in 0..<nG:
       for k in 0..<phf.size():

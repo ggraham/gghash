@@ -25,6 +25,8 @@ proc printMat*[T](m: T) {.importcpp: "#.print()".}
 proc `[]`*[T](m: Row[T]|Col[T]; i: csize_t): T {.importcpp: "#(#)".}
 proc `[]`*[T](m: Cube[T]; i: csize_t): Mat[T] {.importcpp: "#.slice(#)".}
 proc `[]`*[T](m: Mat[T]; r, c: csize_t): T {.importcpp: "#(#,#)".}
+proc row*[T](m: Mat[T]; r: csize_t): Row[T] {.importcpp: "#.row(#)".}
+proc col*[T](m: Mat[T]; c: csize_t): Col[T] {.importcpp: "#.col(#)".}
 proc `[]=`*[T](m: var Mat[T]; r, c: csize_t; e: T) {.importcpp: "#(#,#)=#".}
 proc `[]=`*[T](m: var Col[T]; i: csize_t; e: T) {.importcpp: "#(#)=#".}
 proc `[]=`*[T](m: var Row[T]; i: csize_t; e: T) {.importcpp: "#(#)=#".}
@@ -38,8 +40,10 @@ proc gmmCovs*[T](g: dGMM[T]): Mat[T] {.importcpp: "#.dcovs".}
 proc gmmCovs*[T](g: fGMM[T]): Cube[T] {.importcpp: "#.fcovs".}
 proc gmmAssign*[T](g: fGMM[T]; x: Col[T]; dist: GmmDistEucl|GmmDistProb): culonglong {.importcpp: "#.assign(#,#)".}
 proc gmmAssign*[T](g: fGMM[T]; x: Mat[T]; dist: GmmDistEucl|GmmDistProb): Row[culonglong] {.importcpp: "#.assign(#,#)".}
-proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]; idx: csize_t): Row[T] {.importcpp: "#.log_p(#,#)".}
-proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]): Row[T] {.importcpp: "#.log_p(#)".}
+proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]; idx: csize_t): Row[float] {.importcpp: "#.log_p(#,#)".}
+proc gmmLogP*[T](g: fGMM[T]; x: Mat[T]): Row[float] {.importcpp: "#.log_p(#)".}
+proc gmmLogP*[T](g: fGMM[T]; x: Col[T]): float {.importcpp: "#.log_P(#)".}
+proc gmmLogP*[T](g: fGMM[T]; x: Col[T], idx: csize_t): float {.importcpp: "#.log_p(#,#)".}
 proc gmmSave*(g: fGMM|dGMM; f: cstring) {.importcpp: "#.save(#)".}
 proc gmmLoad*(g: fGMM|dGMM; f: cstring) {.importcpp: "#.load(#)".}
 proc colBegin*[T](m: Mat[T]; idx: csize_t): ColIter[T] {.importcpp: "#.begin_col(#)".}
@@ -54,7 +58,9 @@ proc `[]`*[T](it: ColIter[T]|RowVecIter[T]|RowIter[T]): T {.importcpp: "(*#)".}
 proc `inc`*(it: var ColIter|RowVecIter|RowIter) {.importcpp: "++#".}
 proc `!=`*(it1, it2: ColIter|RowVecIter|RowIter): bool {.importcpp: "# != #".}
 proc insertRows*[T](m: Mat[T]; idx, nRows: csize_t) {.importcpp: "#.insert_rows(@)".}
+proc insertCols*[T](m: Mat[T]; idx, nCols: csize_t) {.importcpp: "#.insert_cols(@)".}
 proc shedRows*[T](m: Mat[T]; idxFrom, idxTo: csize_t) {.importcpp: "#.shed_rows(@)".}
+proc shedCols*[T](m: Mat[T]; idxFrom, idxTo: csize_t) {.importcpp: "#.shed_cols(@)".}
 {.pop.}
 iterator col*[T](m: Col[T]): T =
   var itB = m.colBegin()
@@ -156,6 +162,9 @@ when isMainModule:
     om[0,1] = 1.5
     om[1,1] = 3.1
     om.printMat
+    stdout.writeLine "col 0"
+    om.col(0).printMat
+    stdout.writeLine "col 0 prob: {g.gmmLogP(om.col(0), 0)}".fmt
     let
       o1 = g.gmmLogP(om, 0)
       o2 = g.gmmLogP(om, 1)
