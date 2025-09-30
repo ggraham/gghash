@@ -12,7 +12,7 @@ proc main(r1: string; r2: string;
           nKiter: uint64 = 25;
           nEMiter: uint64 = 500;
           k: uint64 = 12;
-          minLogProb: float = 1;
+          minLogProb: float = 0;
           threads: uint64 = 8;
           writeModel: string = "";
           loadModel: string = "";
@@ -140,12 +140,18 @@ proc main(r1: string; r2: string;
       for n in 0..<nG:
         for d in 0..<nD:
           output.so.write "\tg{n}_d{d}_{k}".fmt
-        output.so.write "\tg{n}_heft".fmt
+        output.so.write "\tg{n}_heft\tg{n}_count\tg{n}_unique".fmt
     output.so.write "\n{m.lengthStats.mean:0.6f}".fmt
     for n in 0..<nG:
+      var
+        counts: tuple[c: uint64; nU: uint64] = (0, 0)
+      for p in 0..<phf.size():
+        if v[n][p] > 0:
+          counts.c += v[n][p]
+          counts.nU += 1
       for r in g.gmmMeans.col(n):
         output.so.write "\t{r:0.6f}".fmt
-      output.so.write "\t{hefts[n]:0.6f}".fmt
+      output.so.write "\t{hefts[n]:0.6f}\t{counts.c}\t{counts.nU}".fmt
     output.so.write "\n"
     output.so.close()
   if writeModel != "":
