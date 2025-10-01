@@ -1,0 +1,15 @@
+[submodule "WFA2"]
+	path = WFA2
+	url = https://github.com/smarco/WFA2-lib.git
+[submodule "external/nthash"]
+	path = external/nthash
+	url = https://github.com/bcgsc/ntHash.git
+[submodule "external/pthash"]
+	path = external/pthash
+	url = https://github.com/ggraham/pthash.git
+[submodule "external/armadillo"]
+	path = external/armadillo
+	url = https://gitlab.com/conradsnicta/armadillo-code.git
+[submodule "external/WFA2"]
+	path = external/WFA2
+	url = https://github.com/smarco/WFA2-lib.git
