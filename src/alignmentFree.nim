@@ -53,7 +53,7 @@ proc main(r1: string; r2: string;
       if pairCount.total mod 1e6.uint64 == 0:
         info("{pairCount.total} reads processed; {pairCount.valid} valid pairs".fmt)
     doAssert(reads.r1.name == reads.r2.name)
-    doAssert(StatusAlgCompleted == gla.alignEndsFree(maxReadLength, reads.r1.seq, maxReadLength, reads.r2.seq.rev.comp))
+    doAssert(StatusAlgCompleted == gla.alignEndsFree(reads.r1.seq.len, reads.r1.seq, reads.r2.seq.len, reads.r2.seq.rev.comp))
     let 
       thisCigar = gla.alToCigarTupleSeqEnum(cigarOps, cigarLen)
     if thisCigar.maxCigarMatchEnum > minOverlapLength:
